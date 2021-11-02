@@ -1,15 +1,14 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class Main {
-    private static final String PATH_TO_SAVE_PROGRESS = "/Users/admin/Games/savegames/";
+    private static final String PATH_TO_SAVE_PROGRESS = "/Users/kalash/Games/savegames/";
+    private static final String ZIP_OUTPUT_NAME = "zip_output.zip";
     private static ArrayList<String> pathStore = new ArrayList();
 
     public static void main(String[] args) {
@@ -24,6 +23,10 @@ public class Main {
         zipFiles(PATH_TO_SAVE_PROGRESS, pathStore);
 
         removeUnpackedFiles(pathStore);
+
+        openZip(PATH_TO_SAVE_PROGRESS + ZIP_OUTPUT_NAME, PATH_TO_SAVE_PROGRESS);
+
+        showSavedFiles(PATH_TO_SAVE_PROGRESS);
     }
 
     public static void saveGame(String path, GameProgress gameProgress) {
@@ -38,7 +41,7 @@ public class Main {
     }
 
     public static void zipFiles(String path, List<String> filesPathList) {
-        try (ZipOutputStream zout = new ZipOutputStream(new FileOutputStream(path + "zip_output.zip"))) {
+        try (ZipOutputStream zout = new ZipOutputStream(new FileOutputStream(path + ZIP_OUTPUT_NAME))) {
             for (String filePath : filesPathList) {
                 try (FileInputStream fis = new FileInputStream(filePath)) {
                     ZipEntry entry = new ZipEntry(filePath.replace(path, ""));
@@ -64,7 +67,48 @@ public class Main {
                 System.out.println("Каталог удален");
             }
         }
+    }
 
+    public static void openZip(String zipPath, String destination) {
+        try (ZipInputStream zin = new ZipInputStream(new
+                FileInputStream(zipPath))) {
+            ZipEntry entry;
+            String name;
+            while ((entry = zin.getNextEntry()) != null) {
+                name = entry.getName();
+                FileOutputStream fout = new FileOutputStream(destination + name);
+                for (int c = zin.read(); c != -1; c = zin.read()) {
+                    fout.write(c);
+                }
+                fout.flush();
+                zin.closeEntry();
+                fout.close();
+            }
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    public static void showSavedFiles(String path) {
+        File dir = new File(path);
+        if (dir.isDirectory()) {
+            for (File item : dir.listFiles()) {
+                if (item.getName().contains("save")) {
+                    System.out.println(openProgress(path + item.getName()).toString());
+                }
+            }
+        }
+    }
+
+    public static GameProgress openProgress(String filePath) {
+        GameProgress gameProgress = null;
+        try (FileInputStream fis = new FileInputStream(filePath);
+             ObjectInputStream ois = new ObjectInputStream(fis)) {
+            gameProgress = (GameProgress) ois.readObject();
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+        return gameProgress;
     }
 
 }
